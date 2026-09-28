@@ -1,5 +1,9 @@
 USE DataWareHouse;
 
+--====================================
+------------- crm_cust_info
+--====================================
+
 -- Check duplicates
 WITH extract_duplicate AS (
 	SELECT 
@@ -18,7 +22,7 @@ WHERE cst_firstname != TRIM(cst_firstname );
 
 
 
--- Insert the clean data
+-- Insert the clean data to crm_cust_info table
 INSERT INTO silver.crm_cust_info (
 	cst_id ,
 	cst_key ,
@@ -52,3 +56,33 @@ FROM(
 	WHERE cst_id IS NOT NULL
 )t
 WHERE t.flag_last = 1;
+
+
+
+-- crm_prd_info
+SELECT * FROM bronze.crm_prd_info;
+-- checking nulls and duplicates in primary key 
+SELECT 
+	prd_id ,
+	COUNT(*)
+FROM bronze.crm_prd_info
+GROUP BY prd_id
+HAVING COUNT(*) > 1 OR prd_id IS NULL;
+
+SELECT 
+	prd_id ,
+	prd_key ,
+	REPLACE(SUBSTRING(prd_key, 1, 5), '-', '_') AS cat_key ,
+	SUBSTRING(prd_key, 7, LEN(prd_key)) AS prd_key ,
+	prd_nm ,
+	ISNULL(prd_cost, 0) AS prd_cost ,
+	CASE
+		WHEN UPPER(TRIM(prd_line)) = 'M' THEN 'Mountain'
+		WHEN UPPER(TRIM(prd_line)) = 'R' THEN 'Road'
+		WHEN UPPER(TRIM(prd_line)) = 'S' THEN 'Other Sales'
+		WHEN UPPER(TRIM(prd_line)) = 'T' THEN 'Touring'
+		ELSE 'n/a'
+	END AS prd_line ,
+	prd_start_dt ,
+	prd_end_dt
+FROM bronze.crm_prd_info;
