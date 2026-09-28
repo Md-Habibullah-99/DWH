@@ -11,13 +11,23 @@ WITH extract_duplicate AS (
 SELECT * FROM extract_duplicate
 WHERE flag_last = 1;
 
-
 -- Check for unwanted spaces
 SELECT cst_firstname 
 FROM bronze.crm_cust_info
 WHERE cst_firstname != TRIM(cst_firstname );
 
 
+
+-- Insert the clean data
+INSERT INTO silver.crm_cust_info (
+	cst_id ,
+	cst_key ,
+	cst_firstname ,
+	cst_lastname ,
+	cst_marital_status ,
+	cst_gndr ,
+	cst_create_date
+)
 SELECT 
 	cst_id ,
 	cst_key ,
