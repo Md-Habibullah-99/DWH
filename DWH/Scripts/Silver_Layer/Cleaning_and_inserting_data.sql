@@ -169,3 +169,35 @@ FROM silver.crm_prd_info
 WHERE prd_end_dt < prd_start_dt;
 
 
+
+
+
+-- ===============================================
+-- ============== crm_sales_details ==============
+-- ===============================================
+
+-- unwanted space
+SELECT
+	sls_ord_num,
+	sls_prd_key,
+	sls_cust_id,
+	sls_order_dt,
+	sls_ship_dt,
+	sls_due_dt,
+	sls_sales,
+	sls_quantity,
+	sls_price
+FROM bronze.crm_sales_details
+WHERE sls_ord_num != TRIM(sls_ord_num);
+
+-- product key is connected or not
+SELECT
+	sls_prd_key
+FROM bronze.crm_sales_details
+WHERE sls_prd_key NOT IN (SELECT prd_key FROM silver.crm_prd_info);
+
+-- customer info is connected or not
+SELECT
+	sls_cust_id
+FROM bronze.crm_sales_details
+WHERE sls_cust_id NOT IN (SELECT cst_id FROM silver.crm_cust_info);
