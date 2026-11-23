@@ -4,23 +4,6 @@ USE DataWareHouse;
 ------------- crm_cust_info
 --====================================
 
--- Check duplicates
-WITH extract_duplicate AS (
-	SELECT 
-	cst_id, 
-	cst_create_date ,
-	COUNT(*) OVER (PARTITION BY cst_id ORDER BY cst_create_date DESC) AS flag_last
-	FROM bronze.crm_cust_info
-)
-SELECT * FROM extract_duplicate
-WHERE flag_last = 1;
-
--- Check for unwanted spaces
-SELECT cst_firstname 
-FROM bronze.crm_cust_info
-WHERE cst_firstname != TRIM(cst_firstname );
-
-
 
 -- Insert the clean data to crm_cust_info table
 INSERT INTO silver.crm_cust_info (
@@ -62,46 +45,6 @@ WHERE t.flag_last = 1;
 -- ================ crm_prd_info =================
 -- ===============================================
 
-SELECT * FROM bronze.crm_prd_info;
-
--- checking nulls and duplicates in primary key 
-SELECT 
-	prd_id ,
-	COUNT(*)
-FROM bronze.crm_prd_info
-GROUP BY prd_id
-HAVING COUNT(*) > 1 OR prd_id IS NULL;
-
--- expectation: no result
-SELECT prd_cost
-FROM bronze.crm_prd_info
-WHERE prd_cost < 0 OR prd_cost IS NULL;
-
--- Data Standardization & Consistincy
-SELECT DISTINCT prd_line 
-FROM bronze.crm_prd_info;
-
--- Check for Invalid Date Orders
-SELECT *
-FROM bronze.crm_prd_info
-WHERE prd_end_dt < prd_start_dt;
-
--- fix invalid date
-SELECT 
-	prd_id ,
-	prd_key ,
-	prd_nm ,
-	prd_start_dt ,
-	prd_end_dt ,
-	DATEADD (
-		DAY,
-		-1,
-		LEAD(prd_start_dt) OVER (PARTITION BY prd_key ORDER BY prd_start_dt)
-		) AS prd_end_dt_test 
-FROM bronze.crm_prd_info
-WHERE prd_key IN ('AC-HE-HL-U509', 'AC-HE-HL-U509-R')
-
-
 
 
 -- ===============================================
@@ -141,33 +84,6 @@ FROM bronze.crm_prd_info;
 
 
 
--- CHECKING AFTER INSERTING
-
-SELECT * FROM silver.crm_prd_info;
-
--- checking nulls and duplicates in primary key 
-SELECT 
-	prd_id ,
-	COUNT(*)
-FROM silver.crm_prd_info
-GROUP BY prd_id
-HAVING COUNT(*) > 1 OR prd_id IS NULL;
-
--- expectation: no result
-SELECT prd_cost
-FROM silver.crm_prd_info
-WHERE prd_cost < 0 OR prd_cost IS NULL;
-
--- Data Standardization & Consistincy
-SELECT DISTINCT prd_line 
-FROM silver.crm_prd_info;
-
--- Check for Invalid Date Orders
--- expectation: no result
-SELECT *
-FROM silver.crm_prd_info
-WHERE prd_end_dt < prd_start_dt;
-
 
 
 
@@ -176,28 +92,45 @@ WHERE prd_end_dt < prd_start_dt;
 -- ============== crm_sales_details ==============
 -- ===============================================
 
--- unwanted space
+
+-- ==========================================
+-- ================ INSERTING DATA ==========
+-- ==========================================
+
+
+INSERT INTO silver.crm_sales_details (
+	sls_ord_num ,
+	sls_prd_key ,
+	sls_cust_id ,
+	sls_order_dt ,
+	sls_ship_dt ,
+	sls_due_dt ,
+	sls_sales ,
+	sls_quantity ,
+	sls_price 
+)
 SELECT
 	sls_ord_num,
 	sls_prd_key,
 	sls_cust_id,
-	sls_order_dt,
-	sls_ship_dt,
-	sls_due_dt,
-	sls_sales,
+	CASE WHEN sls_order_dt = 0 OR LEN(sls_order_dt) != 8 THEN NULL
+		ELSE CAST(CAST(sls_order_dt AS VARCHAR) AS DATE)
+	END AS sls_order_dt,
+	CASE WHEN sls_order_dt = 0 OR LEN(sls_order_dt) != 8 THEN NULL
+		ELSE CAST(CAST(sls_order_dt AS VARCHAR) AS DATE)
+	END AS sls_ship_dt,
+	CASE WHEN sls_order_dt = 0 OR LEN(sls_order_dt) != 8 THEN NULL
+		ELSE CAST(CAST(sls_order_dt AS VARCHAR) AS DATE)
+	END AS sls_due_dt,
+	CASE 
+		WHEN csd.sls_sales IS NULL OR csd.sls_sales <= 0 OR csd.sls_sales != csd.sls_quantity * ABS(csd.sls_price)
+			THEN csd.sls_quantity * ABS(csd.sls_price)
+		ELSE csd.sls_sales 
+	END AS sls_sales ,
 	sls_quantity,
-	sls_price
-FROM bronze.crm_sales_details
-WHERE sls_ord_num != TRIM(sls_ord_num);
-
--- product key is connected or not
-SELECT
-	sls_prd_key
-FROM bronze.crm_sales_details
-WHERE sls_prd_key NOT IN (SELECT prd_key FROM silver.crm_prd_info);
-
--- customer info is connected or not
-SELECT
-	sls_cust_id
-FROM bronze.crm_sales_details
-WHERE sls_cust_id NOT IN (SELECT cst_id FROM silver.crm_cust_info);
+	CASE 
+		WHEN csd.sls_price IS NULL OR csd.sls_price <= 0
+			THEN csd.sls_sales / NULLIF(csd.sls_quantity, 0)
+		ELSE csd.sls_price
+	END AS sls_price
+FROM bronze.crm_sales_details csd;
