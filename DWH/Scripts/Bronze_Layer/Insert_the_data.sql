@@ -14,7 +14,7 @@ WITH (
  * cp "/to/csv/dir/source_crm/cust_info.csv" /tmp/cust_info.csv
  * chmod 644 /tmp/cust_info.csv
  * or
- * cp "/to/csv/dir/source_crm/*.csv" /tmp/cust_info.csv    */
+ * cp "/to/csv/dir/source_crm/*.csv" /tmp/    */
  * chmod 644 /tmp/*.csv   */ 
  */
 
