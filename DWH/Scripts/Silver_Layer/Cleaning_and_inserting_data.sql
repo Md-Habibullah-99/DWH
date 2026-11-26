@@ -134,3 +134,30 @@ SELECT
 		ELSE csd.sls_price
 	END AS sls_price
 FROM bronze.crm_sales_details csd;
+
+
+-- ===============================================
+-- ================ erp_cust_az12 ================
+-- ===============================================
+
+
+-- ===============================================
+-- ================== INSERTING ==================
+-- ===============================================
+
+INSERT INTO silver.erp_cust_az12 (cid, bdate, gen)
+SELECT 
+	CASE 
+		WHEN eca.cid LIKE 'NAS%' THEN SUBSTRING(eca.cid, 4, LEN(eca.cid))
+		ELSE eca.cid
+	END AS cid ,
+	CASE 
+		WHEN eca.bdate > GETDATE() THEN NULL
+		ELSE eca.bdate  
+	END AS bdate ,
+	CASE
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'M%' THEN 'Male'
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'F%' THEN 'Female'
+	    ELSE 'n/a'
+	END AS gen
+FROM bronze.erp_cust_az12 eca ;

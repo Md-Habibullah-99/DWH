@@ -257,3 +257,76 @@ WHERE csd.sls_sales != csd.sls_quantity * csd.sls_price
 OR csd.sls_sales IS NULL OR csd.sls_quantity IS NULL OR csd.sls_price IS NULL
 OR csd.sls_sales <= 0 OR csd.sls_quantity <= 0 OR csd.sls_price <= 0
 ORDER BY csd.sls_sales , csd.sls_quantity , csd.sls_price ;
+
+
+
+
+-- ===============================================
+-- ================ erp_cust_az12 ================
+-- ===============================================
+
+
+-- cid issue
+SELECT 
+	eca.cid 
+FROM bronze.erp_cust_az12 eca 
+WHERE eca.cid LIKE 'NAS%';
+
+-- date of birth issue
+SELECT DISTINCT 
+	eca.bdate 
+FROM bronze.erp_cust_az12 eca 
+WHERE bdate > GETDATE();
+
+-- gender consistency
+SELECT DISTINCT
+    eca.gen,
+    CASE
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'M%' THEN 'Male'
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'F%' THEN 'Female'
+	    ELSE 'n/a'
+	END AS gen
+FROM bronze.erp_cust_az12 AS eca;
+
+-- fix all of them
+SELECT 
+	CASE 
+		WHEN eca.cid LIKE 'NAS%' THEN SUBSTRING(eca.cid, 4, LEN(eca.cid))
+		ELSE eca.cid
+	END AS cid ,
+	CASE 
+		WHEN eca.bdate > GETDATE() THEN NULL
+		ELSE eca.bdate  
+	END AS bdate ,
+	CASE
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'M%' THEN 'Male'
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'F%' THEN 'Female'
+	    ELSE 'n/a'
+	END AS gen
+FROM bronze.erp_cust_az12 eca ; 
+
+
+-- check after inserting
+
+
+-- cid issue
+SELECT 
+	eca.cid 
+FROM silver.erp_cust_az12 eca 
+WHERE eca.cid LIKE 'NAS%';
+
+-- date of birth issue
+SELECT DISTINCT 
+	eca.bdate 
+FROM silver.erp_cust_az12 eca 
+WHERE bdate > GETDATE();
+
+-- gender consistency
+SELECT DISTINCT
+    eca.gen,
+    CASE
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'M%' THEN 'Male'
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'F%' THEN 'Female'
+	    ELSE 'n/a'
+	END AS gen
+FROM silver.erp_cust_az12 AS eca;
