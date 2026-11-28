@@ -409,3 +409,63 @@ ORDER BY cntry ;
 SELECT 
 *
 FROM silver.erp_loc_a101 ela
+
+
+
+-- ===============================================
+-- ============== erp_px_cat_g1v2 ================
+-- ===============================================
+
+SELECT 
+	epcgv.id ,
+	epcgv.cat ,
+	epcgv.subcat ,
+	epcgv.maintenance 
+FROM bronze.erp_px_cat_g1v2 epcgv
+
+-- Check for unwanted Spaces
+SELECT * FROM bronze.erp_px_cat_g1v2
+WHERE cat != TRIM(cat) OR subcat != TRIM(subcat) OR maintenance != TRIM(maintenance);
+
+-- Data Standardization & Consistency 
+SELECT DISTINCT 
+	cat
+FROM bronze.erp_px_cat_g1v2 epcgv ;
+
+SELECT DISTINCT 
+	subcat
+FROM bronze.erp_px_cat_g1v2 epcgv ;
+
+SELECT DISTINCT 
+	TRIM(REPLACE(REPLACE(epcgv.maintenance , CHAR(13), ''), CHAR(10), '')) AS maintenance 
+FROM bronze.erp_px_cat_g1v2 epcgv ;
+
+-- check for hidden text
+SELECT * FROM bronze.erp_px_cat_g1v2 epcgv
+WHERE cat != TRIM(REPLACE(REPLACE(epcgv.cat , CHAR(13), ''), CHAR(10), '')) 
+OR subcat != TRIM(REPLACE(REPLACE(epcgv.subcat , CHAR(13), ''), CHAR(10), '')) 
+OR maintenance != TRIM(REPLACE(REPLACE(epcgv.maintenance , CHAR(13), ''), CHAR(10), ''));
+
+-- with id
+SELECT 
+epcgv.id 
+FROM bronze.erp_px_cat_g1v2 epcgv
+WHERE epcgv.id != TRIM(REPLACE(REPLACE(epcgv.id , CHAR(13), ''), CHAR(10), '')); 
+
+
+
+-- check after inserting
+
+SELECT * FROM silver.erp_px_cat_g1v2 epcgv
+WHERE cat != TRIM(REPLACE(REPLACE(epcgv.cat , CHAR(13), ''), CHAR(10), '')) 
+OR subcat != TRIM(REPLACE(REPLACE(epcgv.subcat , CHAR(13), ''), CHAR(10), '')) 
+OR maintenance != TRIM(REPLACE(REPLACE(epcgv.maintenance , CHAR(13), ''), CHAR(10), ''));
+
+SELECT DISTINCT 
+	TRIM(REPLACE(REPLACE(epcgv.maintenance , CHAR(13), ''), CHAR(10), '')) AS maintenance 
+FROM silver.erp_px_cat_g1v2 epcgv ;
+
+SELECT 
+	epcgv.maintenance 
+FROM silver.erp_px_cat_g1v2 epcgv 
+WHERE TRIM(REPLACE(REPLACE(epcgv.maintenance , CHAR(13), ''), CHAR(10), '')) != epcgv.maintenance ;

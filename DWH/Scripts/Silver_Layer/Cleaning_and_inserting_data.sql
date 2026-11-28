@@ -6,6 +6,10 @@ USE DataWareHouse;
 
 
 -- Insert the clean data to crm_cust_info table
+
+PRINT '>> Truncating Table: silver,crm_cust_info';
+TRUNCATE TABLE silver.crm_cust_info;
+PRINT '>> Inserting Data Into: silver.crm_cust_info';
 INSERT INTO silver.crm_cust_info (
 	cst_id ,
 	cst_key ,
@@ -51,6 +55,9 @@ WHERE t.flag_last = 1;
 -- =============== inserting data ================
 -- ===============================================
 
+PRINT '>> Truncating Table: silver,crm_prd_info ';
+TRUNCATE TABLE silver.crm_prd_info ;
+PRINT '>> Inserting Data Into: silver.crm_prd_info ';
 INSERT INTO silver.crm_prd_info (
 	prd_id,
 	cat_id,
@@ -97,7 +104,9 @@ FROM bronze.crm_prd_info;
 -- ================ INSERTING DATA ==========
 -- ==========================================
 
-
+PRINT '>> Truncating Table: silver,crm_sales_details ';
+TRUNCATE TABLE silver.crm_sales_details ;
+PRINT '>> Inserting Data Into: silver.crm_sales_details ';
 INSERT INTO silver.crm_sales_details (
 	sls_ord_num ,
 	sls_prd_key ,
@@ -145,7 +154,11 @@ FROM bronze.crm_sales_details csd;
 -- ================== INSERTING ==================
 -- ===============================================
 
-INSERT INTO silver.erp_cust_az12 (cid, bdate, gen)
+PRINT '>> Truncating Table: silver,erp_cust_az12 ';
+TRUNCATE TABLE silver.erp_cust_az12 ;
+PRINT '>> Inserting Data Into: silver.erp_cust_az12 ';
+INSERT INTO silver.erp_cust_az12 
+(cid, bdate, gen)
 SELECT 
 	CASE 
 		WHEN eca.cid LIKE 'NAS%' THEN SUBSTRING(eca.cid, 4, LEN(eca.cid))
@@ -172,6 +185,10 @@ FROM bronze.erp_cust_az12 eca ;
 -- ================== INSERTING ==================
 -- ===============================================
 
+
+PRINT '>> Truncating Table: silver,erp_loc_a101 ';
+TRUNCATE TABLE silver.erp_loc_a101 ;
+PRINT '>> Inserting Data Into: silver.erp_loc_a101 ';
 WITH cleaned AS (
     SELECT
     	REPLACE(cid, '-', '') AS cid ,
@@ -190,3 +207,24 @@ SELECT
     END AS cntry
 FROM cleaned cl;
 
+
+
+-- ===============================================
+-- ============== erp_px_cat_g1v2 ================
+-- ===============================================
+
+-- ===============================================
+-- ================== INSERTING ==================
+-- ===============================================
+
+PRINT '>> Truncating Table: silver,erp_px_cat_g1v2 ';
+TRUNCATE TABLE silver.erp_px_cat_g1v2 ;
+PRINT '>> Inserting Data Into: silver.erp_px_cat_g1v2 ';
+INSERT INTO silver.erp_px_cat_g1v2 
+(id, cat, subcat, maintenance)
+SELECT 
+	epcgv.id ,
+	TRIM(REPLACE(REPLACE(epcgv.cat , CHAR(13), ''), CHAR(10), '')) AS cat  ,
+	TRIM(REPLACE(REPLACE(epcgv.subcat , CHAR(13), ''), CHAR(10), '')) AS subcat ,
+	TRIM(REPLACE(REPLACE(epcgv.maintenance , CHAR(13), ''), CHAR(10), '')) AS maintenance 
+FROM bronze.erp_px_cat_g1v2 epcgv;
