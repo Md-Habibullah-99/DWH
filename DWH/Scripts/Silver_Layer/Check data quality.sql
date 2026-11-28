@@ -330,3 +330,82 @@ SELECT DISTINCT
 	    ELSE 'n/a'
 	END AS gen
 FROM silver.erp_cust_az12 AS eca;
+
+
+
+
+
+-- ===============================================
+-- ================ erp_loc_a101 =================
+-- ===============================================
+
+-- check foreign key
+SELECT 
+	REPLACE(ela.cid, '-', '') AS cid ,
+	ela.cntry 
+FROM bronze.erp_loc_a101 ela 
+WHERE REPLACE(ela.cid, '-', '') NOT IN (SELECT cst_key FROM silver.crm_cust_info);
+
+-- Data Standardization & Consistency
+SELECT DISTINCT
+	ela.cntry ,
+	CASE 
+		WHEN UPPER(TRIM(ela.cntry)) LIKE 'UNITED STATES%' OR UPPER(TRIM(ela.cntry)) LIKE 'US%' THEN 'United States'
+		WHEN UPPER(TRIM(ela.cntry)) LIKE 'UNITED KINGDOM%' OR UPPER(TRIM(ela.cntry)) LIKE 'UK%' THEN 'United Kingdom'
+		WHEN UPPER(TRIM(ela.cntry)) LIKE 'GERMANY%' OR UPPER(TRIM(ela.cntry)) LIKE 'DE%' THEN 'Germany'
+		WHEN UPPER(TRIM(ela.cntry)) LIKE 'AUSTRALIA%' THEN 'Australia'
+		WHEN UPPER(TRIM(ela.cntry)) LIKE 'CANADA%' THEN 'Canada'
+		WHEN UPPER(TRIM(ela.cntry)) LIKE 'FRANCE%' THEN 'France'
+		ELSE 'n/a'
+	END AS cntrya
+FROM bronze.erp_loc_a101 ela;
+
+-- or
+-- this script is not working in my machine , because of hidden line breaks , so use the next script
+SELECT
+    CASE
+        WHEN TRIM(cntry) = 'DE' THEN 'Germany'
+        WHEN TRIM(cntry) IN ('US', 'USA') THEN 'United States'
+        WHEN TRIM(cntry) = '' OR cntry IS NULL THEN 'n/a'
+        ELSE TRIM(cntry)
+    END AS cntry
+FROM bronze.erp_loc_a101;
+
+SELECT DISTINCT
+    CASE
+        WHEN NULLIF(UPPER(TRIM(REPLACE(REPLACE(cntry, CHAR(13), ''), CHAR(10), ''))), '') IS NULL
+            THEN 'n/a'
+        WHEN UPPER(TRIM(REPLACE(REPLACE(cntry, CHAR(13), ''), CHAR(10), ''))) = 'DE'
+            THEN 'Germany'
+        WHEN UPPER(TRIM(REPLACE(REPLACE(cntry, CHAR(13), ''), CHAR(10), ''))) IN ('US', 'USA')
+            THEN 'United States'
+        ELSE TRIM(REPLACE(REPLACE(cntry, CHAR(13), ''), CHAR(10), ''))
+    END AS cntry
+FROM bronze.erp_loc_a101;
+
+-- or
+WITH cleaned AS (
+    SELECT
+        TRIM(REPLACE(REPLACE(cntry, CHAR(13), ''), CHAR(10), '')) AS clean_cntry
+    FROM bronze.erp_loc_a101
+)
+SELECT DISTINCT 
+    CASE
+        WHEN cl.clean_cntry = 'DE' THEN 'Germany'
+        WHEN cl.clean_cntry IN ('US', 'USA') THEN 'United States'
+        WHEN cl.clean_cntry = '' OR cl.clean_cntry IS NULL THEN 'n/a'
+        ELSE cl.clean_cntry
+    END AS cntry
+FROM cleaned cl;
+
+-- ====================================
+-- check after inserting
+-- ====================================
+
+SELECT DISTINCT cntry
+FROM silver.erp_loc_a101 ela 
+ORDER BY cntry ;
+
+SELECT 
+*
+FROM silver.erp_loc_a101 ela

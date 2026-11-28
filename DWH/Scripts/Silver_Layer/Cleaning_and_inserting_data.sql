@@ -168,41 +168,25 @@ FROM bronze.erp_cust_az12 eca ;
 -- ================ erp_loc_a101 =================
 -- ===============================================
 
--- check foreign key
-SELECT 
-	REPLACE(ela.cid, '-', '') AS cid ,
-	ela.cntry 
-FROM bronze.erp_loc_a101 ela 
-WHERE REPLACE(ela.cid, '-', '') NOT IN (SELECT cst_key FROM silver.crm_cust_info);
-
--- Data Standardization & Consistency
-SELECT DISTINCT
-	ela.cntry ,
-	CASE 
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'UNITED STATES%' OR UPPER(TRIM(ela.cntry)) LIKE 'US%' THEN 'United States'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'UNITED KINGDOM%' OR UPPER(TRIM(ela.cntry)) LIKE 'UK%' THEN 'United Kingdom'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'GERMANY%' OR UPPER(TRIM(ela.cntry)) LIKE 'DE%' THEN 'Germany'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'AUSTRALIA%' THEN 'Australia'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'CANADA%' THEN 'Canada'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'FRANCE%' THEN 'France'
-		ELSE 'n/a'
-	END AS cntrya
-FROM bronze.erp_loc_a101 ela;
-
-
 -- ===============================================
 -- ================== INSERTING ==================
 -- ===============================================
 
-SELECT 
-	REPLACE(ela.cid, '-', '') AS cid ,
-	CASE 
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'UNITED STATES%' OR UPPER(TRIM(ela.cntry)) LIKE 'US%' THEN 'United States'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'UNITED KINGDOM%' OR UPPER(TRIM(ela.cntry)) LIKE 'UK%' THEN 'United Kingdom'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'GERMANY%' OR UPPER(TRIM(ela.cntry)) LIKE 'DE%' THEN 'Germany'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'AUSTRALIA%' THEN 'Australia'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'CANADA%' THEN 'Canada'
-		WHEN UPPER(TRIM(ela.cntry)) LIKE 'FRANCE%' THEN 'France'
-		ELSE 'n/a'
-	END AS cntry
-FROM bronze.erp_loc_a101 ela;
+WITH cleaned AS (
+    SELECT
+    	REPLACE(cid, '-', '') AS cid ,
+        TRIM(REPLACE(REPLACE(cntry, CHAR(13), ''), CHAR(10), '')) AS clean_cntry
+    FROM bronze.erp_loc_a101
+)
+INSERT INTO silver.erp_loc_a101 
+(cid, cntry)
+SELECT
+	cl.cid ,
+    CASE
+        WHEN cl.clean_cntry = 'DE' THEN 'Germany'
+        WHEN cl.clean_cntry IN ('US', 'USA') THEN 'United States'
+        WHEN cl.clean_cntry = '' OR cl.clean_cntry IS NULL THEN 'n/a'
+        ELSE cl.clean_cntry
+    END AS cntry
+FROM cleaned cl;
+
