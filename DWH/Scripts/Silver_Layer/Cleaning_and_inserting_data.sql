@@ -4,23 +4,6 @@ USE DataWareHouse;
 ------------- crm_cust_info
 --====================================
 
--- Check duplicates
-WITH extract_duplicate AS (
-	SELECT 
-	cst_id, 
-	cst_create_date ,
-	COUNT(*) OVER (PARTITION BY cst_id ORDER BY cst_create_date DESC) AS flag_last
-	FROM bronze.crm_cust_info
-)
-SELECT * FROM extract_duplicate
-WHERE flag_last = 1;
-
--- Check for unwanted spaces
-SELECT cst_firstname 
-FROM bronze.crm_cust_info
-WHERE cst_firstname != TRIM(cst_firstname );
-
-
 
 -- Insert the clean data to crm_cust_info table
 INSERT INTO silver.crm_cust_info (
@@ -62,46 +45,6 @@ WHERE t.flag_last = 1;
 -- ================ crm_prd_info =================
 -- ===============================================
 
-SELECT * FROM bronze.crm_prd_info;
-
--- checking nulls and duplicates in primary key 
-SELECT 
-	prd_id ,
-	COUNT(*)
-FROM bronze.crm_prd_info
-GROUP BY prd_id
-HAVING COUNT(*) > 1 OR prd_id IS NULL;
-
--- expectation: no result
-SELECT prd_cost
-FROM bronze.crm_prd_info
-WHERE prd_cost < 0 OR prd_cost IS NULL;
-
--- Data Standardization & Consistincy
-SELECT DISTINCT prd_line 
-FROM bronze.crm_prd_info;
-
--- Check for Invalid Date Orders
-SELECT *
-FROM bronze.crm_prd_info
-WHERE prd_end_dt < prd_start_dt;
-
--- fix invalid date
-SELECT 
-	prd_id ,
-	prd_key ,
-	prd_nm ,
-	prd_start_dt ,
-	prd_end_dt ,
-	DATEADD (
-		DAY,
-		-1,
-		LEAD(prd_start_dt) OVER (PARTITION BY prd_key ORDER BY prd_start_dt)
-		) AS prd_end_dt_test 
-FROM bronze.crm_prd_info
-WHERE prd_key IN ('AC-HE-HL-U509', 'AC-HE-HL-U509-R')
-
-
 
 
 -- ===============================================
@@ -141,31 +84,109 @@ FROM bronze.crm_prd_info;
 
 
 
--- CHECKING AFTER INSERTING
 
-SELECT * FROM silver.crm_prd_info;
 
--- checking nulls and duplicates in primary key 
+
+
+-- ===============================================
+-- ============== crm_sales_details ==============
+-- ===============================================
+
+
+-- ==========================================
+-- ================ INSERTING DATA ==========
+-- ==========================================
+
+
+INSERT INTO silver.crm_sales_details (
+	sls_ord_num ,
+	sls_prd_key ,
+	sls_cust_id ,
+	sls_order_dt ,
+	sls_ship_dt ,
+	sls_due_dt ,
+	sls_sales ,
+	sls_quantity ,
+	sls_price 
+)
+SELECT
+	sls_ord_num,
+	sls_prd_key,
+	sls_cust_id,
+	CASE WHEN sls_order_dt = 0 OR LEN(sls_order_dt) != 8 THEN NULL
+		ELSE CAST(CAST(sls_order_dt AS VARCHAR) AS DATE)
+	END AS sls_order_dt,
+	CASE WHEN sls_order_dt = 0 OR LEN(sls_order_dt) != 8 THEN NULL
+		ELSE CAST(CAST(sls_order_dt AS VARCHAR) AS DATE)
+	END AS sls_ship_dt,
+	CASE WHEN sls_order_dt = 0 OR LEN(sls_order_dt) != 8 THEN NULL
+		ELSE CAST(CAST(sls_order_dt AS VARCHAR) AS DATE)
+	END AS sls_due_dt,
+	CASE 
+		WHEN csd.sls_sales IS NULL OR csd.sls_sales <= 0 OR csd.sls_sales != csd.sls_quantity * ABS(csd.sls_price)
+			THEN csd.sls_quantity * ABS(csd.sls_price)
+		ELSE csd.sls_sales 
+	END AS sls_sales ,
+	sls_quantity,
+	CASE 
+		WHEN csd.sls_price IS NULL OR csd.sls_price <= 0
+			THEN csd.sls_sales / NULLIF(csd.sls_quantity, 0)
+		ELSE csd.sls_price
+	END AS sls_price
+FROM bronze.crm_sales_details csd;
+
+
+-- ===============================================
+-- ================ erp_cust_az12 ================
+-- ===============================================
+
+
+-- ===============================================
+-- ================== INSERTING ==================
+-- ===============================================
+
+INSERT INTO silver.erp_cust_az12 (cid, bdate, gen)
 SELECT 
-	prd_id ,
-	COUNT(*)
-FROM silver.crm_prd_info
-GROUP BY prd_id
-HAVING COUNT(*) > 1 OR prd_id IS NULL;
+	CASE 
+		WHEN eca.cid LIKE 'NAS%' THEN SUBSTRING(eca.cid, 4, LEN(eca.cid))
+		ELSE eca.cid
+	END AS cid ,
+	CASE 
+		WHEN eca.bdate > GETDATE() THEN NULL
+		ELSE eca.bdate  
+	END AS bdate ,
+	CASE
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'M%' THEN 'Male'
+	    WHEN UPPER(TRIM(eca.gen)) LIKE 'F%' THEN 'Female'
+	    ELSE 'n/a'
+	END AS gen
+FROM bronze.erp_cust_az12 eca ;
 
--- expectation: no result
-SELECT prd_cost
-FROM silver.crm_prd_info
-WHERE prd_cost < 0 OR prd_cost IS NULL;
 
--- Data Standardization & Consistincy
-SELECT DISTINCT prd_line 
-FROM silver.crm_prd_info;
 
--- Check for Invalid Date Orders
--- expectation: no result
-SELECT *
-FROM silver.crm_prd_info
-WHERE prd_end_dt < prd_start_dt;
+-- ===============================================
+-- ================ erp_loc_a101 =================
+-- ===============================================
 
+-- ===============================================
+-- ================== INSERTING ==================
+-- ===============================================
+
+WITH cleaned AS (
+    SELECT
+    	REPLACE(cid, '-', '') AS cid ,
+        TRIM(REPLACE(REPLACE(cntry, CHAR(13), ''), CHAR(10), '')) AS clean_cntry
+    FROM bronze.erp_loc_a101
+)
+INSERT INTO silver.erp_loc_a101 
+(cid, cntry)
+SELECT
+	cl.cid ,
+    CASE
+        WHEN cl.clean_cntry = 'DE' THEN 'Germany'
+        WHEN cl.clean_cntry IN ('US', 'USA') THEN 'United States'
+        WHEN cl.clean_cntry = '' OR cl.clean_cntry IS NULL THEN 'n/a'
+        ELSE cl.clean_cntry
+    END AS cntry
+FROM cleaned cl;
 
